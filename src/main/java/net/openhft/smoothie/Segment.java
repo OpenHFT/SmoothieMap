@@ -55,6 +55,10 @@ class Segment<K, V> extends SegmentPrimitiveArea implements Cloneable {
     @SuppressWarnings("unused")
     Object k0, v0;
 
+    static final long HASH_TABLE_OFFSET;
+    static final long ALLOC_OFFSET;
+    static final int ALLOC_INDEX_SHIFT = (ARRAY_OBJECT_INDEX_SCALE == 4 ? 2 : 3) + 1;
+
     static final int STORED_HASH_BITS = 10;
     static final int ALLOC_INDEX_BITS = 6;
     static final int HASH_TABLE_SLOT_SIZE = 2; // in bytes
@@ -611,10 +615,6 @@ class Segment<K, V> extends SegmentPrimitiveArea implements Cloneable {
         }
         return modCount;
     }
-
-    static final long HASH_TABLE_OFFSET;
-    static final long ALLOC_OFFSET;
-    static final int ALLOC_INDEX_SHIFT = (ARRAY_OBJECT_INDEX_SCALE == 4 ? 2 : 3) + 1;
 
     private static long allocOffset(long allocIndex) {
         return ALLOC_OFFSET + (allocIndex << ALLOC_INDEX_SHIFT);
