@@ -29,6 +29,8 @@ final class SegmentClassGenerator {
     private static final AtomicReferenceArray<Class<Segment>> classCache =
             new AtomicReferenceArray<>(SmoothieMap.MAX_ALLOC_CAPACITY + 1);
 
+    private SegmentClassGenerator() {}
+
     @SuppressWarnings("unchecked")
     public static <T extends Segment> Class<T> acquireClass(int allocationCapacity) {
         Class c;
@@ -80,8 +82,5 @@ final class SegmentClassGenerator {
         cw.visitEnd();
 
         return cw.toByteArray();
-    }
-
-    private SegmentClassGenerator() {
     }
 }

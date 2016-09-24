@@ -61,6 +61,18 @@ final class BytecodeGen {
     private static final CustomClassLoadingOption CUSTOM_CLASS_LOADING =
             parseCustomClassLoadingOption();
 
+    static final ClassLoader SMOOTHIE_CLASS_LOADER = canonicalize(BytecodeGen.class.getClassLoader());
+
+    /** ie. "net.openhft.smoothie" */
+    static final String SMOOTHIE_PACKAGE =
+            BytecodeGen.class.getName().replaceFirst("\\.smoothie\\..*$", ".smoothie");
+
+    /**
+     * Weak cache of bridge class loaders that make the Smoothie Map implementation
+     * classes visible to various code-generated proxies of client classes.
+     */
+    private static final WeakHashMap<ClassLoader, WeakReference<ClassLoader>> CLASS_LOADER_CACHE = new WeakHashMap<>();
+
     /**
      * The options for Smoothie custom class loading.
      */
@@ -106,24 +118,11 @@ final class BytecodeGen {
             return defaultValue;
         }
     }
-
-    static final ClassLoader SMOOTHIE_CLASS_LOADER = canonicalize(BytecodeGen.class.getClassLoader());
-
     // initialization-on-demand...
     private static class SystemBridgeHolder {
         static final BridgeClassLoader SYSTEM_BRIDGE = new BridgeClassLoader();
+
     }
-
-    /** ie. "net.openhft.smoothie" */
-    static final String SMOOTHIE_PACKAGE =
-            BytecodeGen.class.getName().replaceFirst("\\.smoothie\\..*$", ".smoothie");
-
-    /**
-     * Weak cache of bridge class loaders that make the Smoothie Map implementation
-     * classes visible to various code-generated proxies of client classes.
-     */
-    private static final WeakHashMap<ClassLoader, WeakReference<ClassLoader>> CLASS_LOADER_CACHE =
-            new WeakHashMap<>();
 
     private static ClassLoader getFromClassLoaderCache(ClassLoader typeClassLoader) {
         synchronized (CLASS_LOADER_CACHE) {

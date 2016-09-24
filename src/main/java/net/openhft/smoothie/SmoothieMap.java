@@ -283,26 +283,6 @@ public class SmoothieMap<K, V> extends AbstractMap<K, V> implements Cloneable, S
 
     static final int GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY = 1 << 30;
 
-    /**
-     * @return a power of 2 number of segments
-     */
-    static int chooseSegments(long expectedSize) {
-        if (expectedSize < 0) {
-            throw new IllegalArgumentException("Expected size should be positive, " +
-                    expectedSize + " given ");
-        }
-        long segments = 1L;
-        // overflow-aware
-        while (expectedSize - segments * MAX_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT > 0) {
-            segments *= 2L;
-        }
-        if (segments > GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY) {
-            throw new IllegalArgumentException("SmoothieMap is not able to hold " +
-                    expectedSize + " entries");
-        }
-        return (int) segments;
-    }
-
     // See MathDecisions in test/
     static final int MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT = 32;
     static final int MAX_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT = 63;
@@ -326,36 +306,6 @@ public class SmoothieMap<K, V> extends AbstractMap<K, V> implements Cloneable, S
     static final long[] SEGMENTS_QUADRUPLING_FROM = ARRAY_OBJECT_INDEX_SCALE == 4 ?
             SEGMENTS_QUADRUPLING_FROM_REF_SIZE_4 : SEGMENTS_QUADRUPLING_FROM_REF_SIZE_8;
 
-    /**
-     * @return 0 - default, 1 - doubling, 2 - quadrupling
-     */
-    static int chooseUpFrontScale(long expectedSize, int segments) {
-        // if only one segment, no possibility to "skew" assuming given expectedSize is precise
-        if (segments == 1)
-            return 0;
-        int roundedUpAverageEntriesPerSegment =
-                Math.max((int) roundedUpDivide(expectedSize, segments),
-                        MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT);
-        assert roundedUpAverageEntriesPerSegment <= MAX_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT;
-        int indexInSegmentsQuadruplingFromArray =
-                roundedUpAverageEntriesPerSegment - MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT;
-        if (segments * 4L <= GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY &&
-                indexInSegmentsQuadruplingFromArray < SEGMENTS_QUADRUPLING_FROM.length &&
-                segments >= SEGMENTS_QUADRUPLING_FROM[indexInSegmentsQuadruplingFromArray]) {
-            return 2; // quadrupling
-        } else {
-            if (segments * 2L <= GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY) {
-                return 1; // doubling
-            } else {
-                return 0;
-            }
-        }
-    }
-
-    static long roundedUpDivide(long dividend, long divisor) {
-        return (dividend + divisor - 1) / divisor;
-    }
-
     // See MathDecisions in test/
     static final byte[] ALLOC_CAPACITIES_REF_SIZE_4 = {
             42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 63, 63,
@@ -372,17 +322,6 @@ public class SmoothieMap<K, V> extends AbstractMap<K, V> implements Cloneable, S
 
     static final int MAX_ALLOC_CAPACITY = ALLOC_CAPACITIES[ALLOC_CAPACITIES.length - 1];
     static final int MIN_ALLOC_CAPACITY = ALLOC_CAPACITIES[0];
-
-    static int chooseAllocCapacity(long expectedSize, int segments) {
-        int averageEntriesPerSegment = Math.max((int) roundedUpDivide(expectedSize, segments),
-                MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT);
-        return ALLOC_CAPACITIES[
-                averageEntriesPerSegment - MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT];
-    }
-
-    static int segmentsTier(int segments) {
-        return Integer.numberOfTrailingZeros(segments);
-    }
 
     /**
      * The value for spreading low bits of hash code to high. Approximately equal to {@code
@@ -438,6 +377,67 @@ public class SmoothieMap<K, V> extends AbstractMap<K, V> implements Cloneable, S
     public SmoothieMap(Map<? extends K, ? extends V> m) {
         this(m.size());
         putAll(m);
+    }
+
+    /**
+     * @return a power of 2 number of segments
+     */
+    static int chooseSegments(long expectedSize) {
+        if (expectedSize < 0) {
+            throw new IllegalArgumentException("Expected size should be positive, " +
+                    expectedSize + " given ");
+        }
+        long segments = 1L;
+        // overflow-aware
+        while (expectedSize - segments * MAX_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT > 0) {
+            segments *= 2L;
+        }
+        if (segments > GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY) {
+            throw new IllegalArgumentException("SmoothieMap is not able to hold " +
+                    expectedSize + " entries");
+        }
+        return (int) segments;
+    }
+
+    /**
+     * @return 0 - default, 1 - doubling, 2 - quadrupling
+     */
+    static int chooseUpFrontScale(long expectedSize, int segments) {
+        // if only one segment, no possibility to "skew" assuming given expectedSize is precise
+        if (segments == 1)
+            return 0;
+        int roundedUpAverageEntriesPerSegment =
+                Math.max((int) roundedUpDivide(expectedSize, segments),
+                        MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT);
+        assert roundedUpAverageEntriesPerSegment <= MAX_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT;
+        int indexInSegmentsQuadruplingFromArray =
+                roundedUpAverageEntriesPerSegment - MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT;
+        if (segments * 4L <= GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY &&
+                indexInSegmentsQuadruplingFromArray < SEGMENTS_QUADRUPLING_FROM.length &&
+                segments >= SEGMENTS_QUADRUPLING_FROM[indexInSegmentsQuadruplingFromArray]) {
+            return 2; // quadrupling
+        } else {
+            if (segments * 2L <= GUARANTEED_JAVA_ARRAY_POWER_OF_TWO_CAPACITY) {
+                return 1; // doubling
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    static long roundedUpDivide(long dividend, long divisor) {
+        return (dividend + divisor - 1) / divisor;
+    }
+
+    static int chooseAllocCapacity(long expectedSize, int segments) {
+        int averageEntriesPerSegment = Math.max((int) roundedUpDivide(expectedSize, segments),
+                MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT);
+        return ALLOC_CAPACITIES[
+                averageEntriesPerSegment - MIN_ROUNDED_UP_AVERAGE_ENTRIES_PER_SEGMENT];
+    }
+
+    static int segmentsTier(int segments) {
+        return Integer.numberOfTrailingZeros(segments);
     }
 
     private void initSegments(int segments, int segmentsTier, int upFrontScale) {
